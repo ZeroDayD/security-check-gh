@@ -1,3 +1,4 @@
+# .github/workflows/security.yml
 name: Security Scan
 
 on:
@@ -7,30 +8,38 @@ on:
     types: [opened, synchronize, reopened, labeled, unlabeled]
 
 jobs:
-  security-checks:
+  gitleaks:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      - name: Install GitHub CLI
+      - name: Run Gitleaks (full file scan, no git)
         run: |
-          sudo apt-get install gh -y
-          gh auth status
-        env:
-          GH_TOKEN: ${{ github.token }}
-
-      - name: Run Gitleaks (secrets scan)
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz | tar -xz
+          chmod +x gitleaks
+          ./gitleaks detect \
+            --source . \
+            --no-git \
+            --redact \
+            --report-format sarif \
+            --report-path gitleaks.sarif \
+            --exit-code 1
         id: gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: "accept"
 
-      - name: Run Trivy vulnerability scanner
-        id: trivy
+      - name: Upload Gitleaks SARIF
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-results
+          path: gitleaks.sarif
+
+  trivy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run Trivy
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
@@ -38,18 +47,19 @@ jobs:
           format: table
           severity: CRITICAL,HIGH
           exit-code: 1
-
-      - name: Scan Dockerfile with Trivy (if present)
-        id: trivy-docker
+      - name: Scan Dockerfile
         run: |
           if [ -f Dockerfile ]; then
             docker run --rm -v $(pwd):/src aquasec/trivy image --severity CRITICAL,HIGH --no-progress -q -f table -i /src/Dockerfile
           else
-            echo "No Dockerfile found, skipping image scan."
+            echo "No Dockerfile found."
           fi
 
-      - name: Run npm audit on demo-app
-        id: npm-audit
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run npm audit
         working-directory: demo-app
         run: |
           npm install --omit=dev
@@ -57,29 +67,31 @@ jobs:
 
   no-block-check:
     runs-on: ubuntu-latest
-    needs: security-checks
+    needs: [gitleaks, trivy, npm-audit]
     if: always()
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: Allow merge if 'no-block' label is present
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          echo "Evaluating merge override via 'no-block' label..."
+          echo "Evaluating 'no-block' label override..."
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             LABELS=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels[].name')
             echo "Labels: $LABELS"
             if echo "$LABELS" | grep -q "no-block"; then
-              echo "'no-block' label found. Allowing merge despite failures."
+              echo "'no-block' label found. Allowing merge."
               exit 0
             fi
           fi
 
-          if [ "${{ needs.security-checks.result }}" != "success" ]; then
-            echo "Security checks failed and no 'no-block' override found. Blocking merge."
+          # Check if any required job failed
+          if [ "${{ needs.gitleaks.result }}" != "success" ] || \
+             [ "${{ needs.trivy.result }}" != "success" ] || \
+             [ "${{ needs.npm-audit.result }}" != "success" ]; then
+            echo "Checks failed. Merge blocked."
             exit 1
           fi
 
-          echo "All checks passed. Merge allowed."
+          echo "All checks passed."
