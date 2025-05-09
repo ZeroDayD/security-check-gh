@@ -16,8 +16,7 @@ jobs:
       - name: Install GitHub CLI
         run: |
           sudo apt-get install gh -y
-          gh auth setup-git
-          gh auth login --with-token <<< "${GH_TOKEN}"
+          gh auth status
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -78,6 +77,7 @@ jobs:
             echo "Security checks failed and no 'no-block' label is set. Failing job."
             exit 1
           fi
-          echo "All checks passed."
+
+          echo "All security checks passed."
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
