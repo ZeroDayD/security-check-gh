@@ -2,9 +2,9 @@ name: Security Scan
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
 
 jobs:
   security:
@@ -13,24 +13,71 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get install gh -y
+          gh auth setup-git
+          gh auth login --with-token <<< "${GH_TOKEN}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Run Gitleaks (secrets scan)
+        id: gitleaks
+        continue-on-error: true
         uses: gitleaks/gitleaks-action@v2
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: "accept"
 
-      - name: Run Trivy vulnerability scanner (files and dependencies)
+      - name: Run Trivy vulnerability scanner
+        id: trivy
+        continue-on-error: true
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
           ignore-unfixed: true
           format: table
           severity: CRITICAL,HIGH
-          exit-code: 0
+          exit-code: 1
 
       - name: Scan Dockerfile with Trivy (if present)
+        id: trivy-docker
+        continue-on-error: true
         run: |
           if [ -f Dockerfile ]; then
-            docker run --rm -v $(pwd):/src aquasec/trivy image --severity CRITICAL,HIGH --no-progress -q -f table -i /src/Dockerfile || true
+            docker run --rm -v $(pwd):/src aquasec/trivy image --severity CRITICAL,HIGH --no-progress -q -f table -i /src/Dockerfile || exit 1
           else
             echo "No Dockerfile found, skipping image scan."
           fi
+
+      - name: Run npm audit on demo-app
+        id: npm-audit
+        continue-on-error: true
+        working-directory: demo-app
+        run: |
+          npm install --omit=dev
+          npm audit --audit-level=high || exit 1
+
+      - name: Check for no-block label and fail if needed
+        run: |
+          echo "Checking PR labels..."
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            LABELS=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels[].name')
+            echo "Labels: $LABELS"
+            if echo "$LABELS" | grep -q "no-block"; then
+              echo "'no-block' label found. Skipping failure."
+              exit 0
+            fi
+          fi
+
+          echo "Checking step results..."
+          if [ "${{ steps.gitleaks.outcome }}" != "success" ] || \
+             [ "${{ steps.trivy.outcome }}" != "success" ] || \
+             [ "${{ steps.trivy-docker.outcome }}" != "success" ] || \
+             [ "${{ steps.npm-audit.outcome }}" != "success" ]; then
+            echo "Security checks failed and no 'no-block' label is set. Failing job."
+            exit 1
+          fi
+          echo "All checks passed."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
