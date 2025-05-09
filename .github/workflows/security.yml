@@ -9,8 +9,6 @@ on:
 jobs:
   security-checks:
     runs-on: ubuntu-latest
-    outputs:
-      result: ${{ steps.result.outcome }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -55,11 +53,7 @@ jobs:
           npm install --omit=dev
           npm audit --audit-level=high
 
-      - name: Mark checks complete
-        id: result
-        run: echo "All checks complete"
-
-  security-gate:
+  no-block-check:
     runs-on: ubuntu-latest
     needs: security-checks
     if: always()
@@ -71,21 +65,21 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Evaluate no-block label override
+      - name: Allow merge if 'no-block' label is present
         run: |
-          echo "Checking for 'no-block' label..."
+          echo "Evaluating merge override via 'no-block' label..."
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             LABELS=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels[].name')
             echo "Labels: $LABELS"
             if echo "$LABELS" | grep -q "no-block"; then
-              echo "'no-block' label found. Overriding failure."
+              echo "'no-block' label found. Allowing merge despite failures."
               exit 0
             fi
           fi
 
-          echo "Checking result of security-checks..."
           if [ "${{ needs.security-checks.result }}" != "success" ]; then
-            echo "Security checks failed and no override present. Blocking merge."
+            echo "Security checks failed and no 'no-block' override found. Blocking merge."
             exit 1
           fi
-          echo "All security checks passed or override applied."
+
+          echo "All checks passed. Merge allowed."
