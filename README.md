@@ -4,24 +4,27 @@ This project demonstrates a basic security CI pipeline for any GitHub project us
 
 ## ✅ What it Does
 
-- **Gitleaks**: scans your codebase for secrets like tokens, passwords, API keys
+- **Gitleaks**: scans your codebase for secrets like tokens, passwords, API keys (with SARIF output)
 - **Trivy**: scans the repository for known vulnerabilities (CVEs) and optionally your Dockerfile
+- **npm audit**: checks Node.js dependencies for known issues (optional)
+- **Custom bypass**: add the `no-block` label to allow merging despite security scan failures
 
 ## 📦 Requirements
 No runtime dependencies — works with any codebase (Node.js, Python, Go, etc.)
 
 ## 🚀 How to Use
 1. Copy `.github/workflows/security.yml` to your repository
-2. Push to `main` or open a pull request
-3. GitHub Actions will trigger the security scan automatically
+2. Optionally copy `.gitleaks.toml` if you want to customize detection rules
+3. Push to `main` or open a pull request
+4. GitHub Actions will trigger the security scan automatically
 
-## 🔐 Example Output
-You’ll see output from Gitleaks and Trivy directly in the Actions tab of your repo
+## 🔐 Output
+You’ll see output from Gitleaks and Trivy in the Actions tab. SARIF results are saved as artifacts.
 
 ---
 
 Feel free to extend this workflow with:
-- `npm audit` or `yarn audit` (if using Node.js)
+- `yarn audit` (if using Yarn)
 - `bandit` for Python
 - `snyk` if you have an account
 - `dependency-check` for Java
