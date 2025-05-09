@@ -1,0 +1,6 @@
+[[rules]]
+description = "Sidekiq Secret (disabled)"
+id = "sidekiq-secret"
+regex = '''sidekiq\.secret\s*=\s*["'][a-f0-9]{64}["']'''
+tags = ["key", "rails"]
+disabled = true
