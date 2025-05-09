@@ -58,6 +58,9 @@ jobs:
     needs: security-checks
     if: always()
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
       - name: Allow merge if 'no-block' label is present
         env:
           GH_TOKEN: ${{ github.token }}
