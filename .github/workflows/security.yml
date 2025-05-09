@@ -26,7 +26,7 @@ jobs:
         run: |
           curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz | tar -xz
           chmod +x gitleaks
-          ./gitleaks detect --redact --exit-code=1 --report-format=sarif --report-path=gitleaks.sarif --source .
+          ./gitleaks detect --redact --exit-code=1 --report-format=sarif --report-path=gitleaks.sarif --no-git --source .
         id: gitleaks
 
       - name: Upload Gitleaks SARIF
