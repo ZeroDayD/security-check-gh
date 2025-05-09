@@ -23,6 +23,7 @@ jobs:
             --source . \
             --no-git \
             --redact \
+            --verbose \
             --report-format sarif \
             --report-path gitleaks.sarif \
             --exit-code 1
