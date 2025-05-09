@@ -2,7 +2,9 @@ name: Security Scan
 
 on:
   push:
+    branches: [main, master]
   pull_request:
+    branches: [main, master]
 
 jobs:
   security:
@@ -32,3 +34,9 @@ jobs:
           else
             echo "No Dockerfile found, skipping image scan."
           fi
+
+      - name: Run npm audit on demo-app
+        working-directory: demo-app
+        run: |
+          npm install --omit=dev
+          npm audit --audit-level=high || true
