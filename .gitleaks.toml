@@ -1,6 +1,26 @@
+title = "Custom Gitleaks Ruleset"
+description = "Standard + custom rules for security CI testing"
+version = 3
+
+[allowlist]
+paths = [
+  '''.*\.test\.(js|ts|py)''',
+  '''test-fixtures/.*'''
+]
+
+regexes = [
+  '''example_token_.*''',
+  '''AKIA_FAKE_[A-Z0-9]+'''
+]
+
 [[rules]]
-description = "Sidekiq Secret (disabled)"
-id = "sidekiq-secret"
-regex = '''sidekiq\.secret\s*=\s*["'][a-f0-9]{64}["']'''
-tags = ["key", "rails"]
-disabled = true
+id = "fake-ghp-token"
+description = "Fake GitHub token pattern for testing"
+regex = '''ghp_[A-Za-z0-9]{10,}'''
+tags = ["token", "test"]
+
+[[rules]]
+id = "fake-aws-key"
+description = "Fake AWS key for testing"
+regex = '''AKIA[A-Z0-9]{10,}'''
+tags = ["aws", "test"]
