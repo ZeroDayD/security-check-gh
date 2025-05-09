@@ -21,6 +21,8 @@ No runtime dependencies — works with any codebase (Node.js, Python, Go, etc.)
 ## 🔐 Output
 You’ll see output from Gitleaks and Trivy in the Actions tab. SARIF results are saved as artifacts.
 
+# Secrets for test
+PrivateToken=ghp_abcdefghijklmnopqrstuvwxyzABCDEF123456
 ---
 
 Feel free to extend this workflow with:
