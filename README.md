@@ -19,7 +19,7 @@ No runtime dependencies — works with any codebase (Node.js, Python, Go, etc.)
 You’ll see output from Gitleaks and Trivy directly in the Actions tab of your repo
 
 # Secrets for test
-PrivateToken=ghp_fakeGitHubToken1234567890abcdc
+PrivateToken=ghp_abcdefghijklmnopqrstuvwxyzABCDEF123456
 ---
 
 Feel free to extend this workflow with:
